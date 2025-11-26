@@ -130,7 +130,7 @@ app.use((req, res) => {
 app.use(errorHandler);
 
 // Start server (only in non-serverless environments)
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 8080;
 
 // For Vercel serverless, don't start the server
 if (process.env.VERCEL !== '1') {
