@@ -1,4 +1,4 @@
-# Web3 Social + Prediction Platform Backend
+# Anonn Backend
 
 A comprehensive Node.js + Express backend for a Web3-enabled social and prediction platform, combining features similar to Reddit and Polymarket.
 
