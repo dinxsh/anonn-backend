@@ -2,7 +2,7 @@
 
 A comprehensive Node.js + Express backend for a Web3-enabled social and prediction platform, combining features similar to Reddit and Polymarket.
 
-## 🚀 Features
+## Features
 
 ### Core Modules
 
@@ -27,7 +27,7 @@ A comprehensive Node.js + Express backend for a Web3-enabled social and predicti
 - ✅ Web3 integration with ethers.js
 - ✅ Modular folder structure
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 backend/
@@ -82,7 +82,7 @@ backend/
 └── README.md
 ```
 
-## 🛠️ Installation
+## Installation
 
 ### Prerequisites
 
@@ -179,7 +179,7 @@ backend/
 - `GET /api/wallet/:id/balance` - Get balance
 - `POST /api/wallet/verify` - Verify signature
 
-## 🧪 Testing
+## Testing
 
 Test credentials (after running seed):
 - **Email:** alice@example.com
@@ -187,7 +187,7 @@ Test credentials (after running seed):
 
 Use Postman, cURL, or any HTTP client to test endpoints.
 
-## 🔐 Authentication
+## Authentication
 
 All protected routes require a JWT token in the Authorization header:
 
@@ -197,18 +197,18 @@ Authorization: Bearer <access_token>
 
 Get tokens by calling `/api/auth/login` or `/api/auth/register`.
 
-## 🌐 Web3 Integration
+## Web3 Integration
 
 The wallet module supports:
 - Multi-chain wallet linking (Ethereum, Polygon, etc.)
 - Signature verification for wallet ownership
 - Balance fetching from blockchain
 - On-chain market data integration
-## 📝 License
+## License
 
 MIT
 
-## 👥 Author
+## Author
 
 Built for a Web3 social + prediction platform
 
