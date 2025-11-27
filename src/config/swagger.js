@@ -37,7 +37,7 @@ const swaggerOptions = {
                     type: 'http',
                     scheme: 'bearer',
                     bearerFormat: 'JWT',
-                    description: 'Enter your JWT token in the format: Bearer <token>',
+                    description: 'Enter your JWT access token. Get it from /api/auth/login or /api/auth/wallet/verify',
                 },
             },
             schemas: {
@@ -46,9 +46,71 @@ const swaggerOptions = {
                     properties: {
                         _id: { type: 'string', example: '507f1f77bcf86cd799439011' },
                         username: { type: 'string', example: 'alice_trader' },
-                        email: { type: 'string', format: 'email', example: 'alice@example.com' },
+                        email: {
+                            type: 'string',
+                            format: 'email',
+                            example: 'alice@example.com',
+                            description: 'Email address (optional for wallet-only accounts)'
+                        },
                         bio: { type: 'string', example: 'Crypto enthusiast and market analyst' },
                         avatar: { type: 'string', format: 'uri', example: 'https://i.pravatar.cc/150?img=1' },
+                        authMethod: {
+                            type: 'string',
+                            enum: ['email', 'wallet', 'both'],
+                            example: 'both',
+                            description: 'Authentication method used by the user'
+                        },
+                        primaryWallet: {
+                            type: 'string',
+                            example: '7xKzL3vQr8mN9pXqB2wY5tH6jK4sL1mR',
+                            description: 'Primary Solana wallet address'
+                        },
+                        walletAddresses: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    address: { type: 'string' },
+                                    chain: {
+                                        type: 'string',
+                                        enum: ['ethereum', 'polygon', 'binance', 'solana']
+                                    },
+                                    isPrimary: { type: 'boolean' },
+                                    verified: { type: 'boolean' }
+                                }
+                            }
+                        },
+                        followerCount: { type: 'integer', example: 42 },
+                        followingCount: { type: 'integer', example: 38 },
+                        createdAt: { type: 'string', format: 'date-time' },
+                        updatedAt: { type: 'string', format: 'date-time' },
+                    },
+                },
+                Wallet: {
+                    type: 'object',
+                    properties: {
+                        _id: { type: 'string', example: '507f1f77bcf86cd799439011' },
+                        user: { type: 'string', description: 'User ID' },
+                        address: {
+                            type: 'string',
+                            example: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
+                            description: 'Wallet address (lowercase)'
+                        },
+                        chain: {
+                            type: 'string',
+                            enum: ['ethereum', 'polygon', 'binance', 'solana', 'arbitrum', 'optimism'],
+                            example: 'solana'
+                        },
+                        isVerified: { type: 'boolean', example: true },
+                        isPrimary: { type: 'boolean', example: false },
+                        isActive: { type: 'boolean', example: true },
+                        nativeBalance: {
+                            type: 'object',
+                            properties: {
+                                amount: { type: 'string', example: '1.234567' },
+                                lastUpdated: { type: 'string', format: 'date-time' }
+                            }
+                        },
                         createdAt: { type: 'string', format: 'date-time' },
                     },
                 },
@@ -89,7 +151,16 @@ const swaggerOptions = {
                     properties: {
                         success: { type: 'boolean', example: false },
                         message: { type: 'string', example: 'Error message' },
-                        errors: { type: 'array', items: { type: 'object' } },
+                        errors: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    field: { type: 'string' },
+                                    message: { type: 'string' }
+                                }
+                            }
+                        },
                     },
                 },
                 Success: {
