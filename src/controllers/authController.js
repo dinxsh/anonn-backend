@@ -2,10 +2,21 @@ import User from '../models/User.js';
 import { hashPassword, comparePassword } from '../utils/password.js';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../utils/jwt.js';
 import { successResponse, errorResponse } from '../utils/response.js';
+import {
+    generateNonce,
+    storeNonce,
+    getNonce,
+    removeNonce,
+    formatWalletMessage,
+    verifySignature,
+    isValidSolanaAddress,
+    generateUsernameFromWallet,
+} from '../utils/solana.js';
 
 /**
  * Auth Controller
  * Handles user authentication: register, login, logout, refresh, current user
+ * + Solana wallet authentication
  */
 
 /**
@@ -36,6 +47,7 @@ export const register = async (req, res, next) => {
             username,
             email,
             password: hashedPassword,
+            authMethod: 'email',
         });
 
         // Generate tokens
@@ -167,4 +179,213 @@ export const getCurrentUser = async (req, res, next) => {
     } catch (error) {
         next(error);
     }
+};
+
+/**
+ * @route   POST /api/auth/wallet/nonce
+ * @desc    Request nonce for Solana wallet authentication
+ * @access  Public
+ */
+export const requestWalletNonce = async (req, res, next) => {
+    try {
+        const { publicKey } = req.body;
+
+        // Validate Solana address
+        if (!isValidSolanaAddress(publicKey)) {
+            return errorResponse(res, 400, 'Invalid Solana public key');
+        }
+
+        // Generate and store nonce
+        const nonce = generateNonce();
+        storeNonce(publicKey, nonce);
+
+        // Format message to sign
+        const message = formatWalletMessage(nonce, 'authentication');
+
+        return successResponse(res, 200, {
+            nonce,
+            message,
+            expiresIn: 300, // 5 minutes in seconds
+        }, 'Nonce generated successfully');
+
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * @route   POST /api/auth/wallet/verify
+ * @desc    Verify wallet signature and login/register
+ * @access  Public
+ */
+export const walletAuth = async (req, res, next) => {
+    try {
+        const { publicKey, signature, username } = req.body;
+
+        // Validate Solana address
+        if (!isValidSolanaAddress(publicKey)) {
+            return errorResponse(res, 400, 'Invalid Solana public key');
+        }
+
+        // Retrieve stored nonce
+        const storedNonce = getNonce(publicKey);
+        if (!storedNonce) {
+            return errorResponse(res, 400, 'Nonce not found or expired. Please request a new nonce.');
+        }
+
+        // Recreate the message
+        const message = formatWalletMessage(storedNonce, 'authentication');
+
+        // Verify signature
+        const isValid = verifySignature(message, signature, publicKey);
+        if (!isValid) {
+            return errorResponse(res, 401, 'Invalid signature');
+        }
+
+        // Remove used nonce (one-time use)
+        removeNonce(publicKey);
+
+        // Check if user already exists with this wallet
+        let user = await User.findOne({ primaryWallet: publicKey });
+
+        if (user) {
+            // Existing user - login
+            if (!user.isActive) {
+                return errorResponse(res, 403, 'Account is deactivated');
+            }
+        } else {
+            // New user - register
+            const generatedUsername = username || generateUsernameFromWallet(publicKey);
+
+            // Check if username is taken
+            const existingUsername = await User.findOne({ username: generatedUsername });
+            if (existingUsername) {
+                return errorResponse(res, 400, 'Username already taken. Please provide a custom username.');
+            }
+
+            // Create new user with wallet authentication
+            user = await User.create({
+                username: generatedUsername,
+                authMethod: 'wallet',
+                primaryWallet: publicKey,
+                walletAddresses: [{
+                    address: publicKey,
+                    chain: 'solana',
+                    isPrimary: true,
+                    verified: true,
+                }],
+            });
+        }
+
+        // Generate tokens
+        const accessToken = generateAccessToken(user._id);
+        const refreshToken = generateRefreshToken(user._id);
+
+        // Remove password from response
+        const userResponse = user.toObject();
+        delete userResponse.password;
+
+        return successResponse(res, user.isNew ? 201 : 200, {
+            user: userResponse,
+            accessToken,
+            refreshToken,
+            isNewUser: user.isNew || false,
+        }, user.isNew ? 'Account created successfully' : 'Login successful');
+
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * @route   POST /api/auth/wallet/link
+ * @desc    Link Solana wallet to existing authenticated account
+ * @access  Private
+ */
+export const linkWallet = async (req, res, next) => {
+    try {
+        const { publicKey, signature } = req.body;
+        const userId = req.user._id;
+
+        // Validate Solana address
+        if (!isValidSolanaAddress(publicKey)) {
+            return errorResponse(res, 400, 'Invalid Solana public key');
+        }
+
+        // Check if wallet is already linked to another account
+        const existingWallet = await User.findOne({ primaryWallet: publicKey });
+        if (existingWallet && existingWallet._id.toString() !== userId.toString()) {
+            return errorResponse(res, 400, 'This wallet is already linked to another account');
+        }
+
+        // Retrieve stored nonce
+        const storedNonce = getNonce(publicKey);
+        if (!storedNonce) {
+            return errorResponse(res, 400, 'Nonce not found or expired. Please request a new nonce.');
+        }
+
+        // Recreate the message
+        const message = formatWalletMessage(storedNonce, 'link-wallet');
+
+        // Verify signature
+        const isValid = verifySignature(message, signature, publicKey);
+        if (!isValid) {
+            return errorResponse(res, 401, 'Invalid signature');
+        }
+
+        // Remove used nonce
+        removeNonce(publicKey);
+
+        // Update user
+        const user = await User.findById(userId);
+
+        // Set primary wallet if not already set
+        if (!user.primaryWallet) {
+            user.primaryWallet = publicKey;
+        }
+
+        // Add to wallet addresses if not already there
+        const walletExists = user.walletAddresses.some(w => w.address === publicKey);
+        if (!walletExists) {
+            user.walletAddresses.push({
+                address: publicKey,
+                chain: 'solana',
+                isPrimary: !user.primaryWallet || user.primaryWallet === publicKey,
+                verified: true,
+            });
+        }
+
+        // Update auth method
+        if (user.authMethod === 'email') {
+            user.authMethod = 'both';
+        } else if (user.authMethod === 'wallet' && !user.email) {
+            // Keep as wallet-only if no email
+            user.authMethod = 'wallet';
+        }
+
+        await user.save();
+
+        // Remove password from response
+        const userResponse = user.toObject();
+        delete userResponse.password;
+
+        return successResponse(res, 200, {
+            user: userResponse,
+            wallets: user.walletAddresses,
+        }, 'Wallet linked successfully');
+
+    } catch (error) {
+        next(error);
+    }
+};
+
+export default {
+    register,
+    login,
+    logout,
+    refresh,
+    getCurrentUser,
+    requestWalletNonce,
+    walletAuth,
+    linkWallet,
 };

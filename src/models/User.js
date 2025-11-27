@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 /**
  * User Model
  * Represents users with profiles, bookmarks, and social features
+ * Supports both email/password and Solana wallet authentication
  */
 
 const userSchema = new mongoose.Schema(
@@ -18,16 +19,34 @@ const userSchema = new mongoose.Schema(
         },
         email: {
             type: String,
-            required: [true, 'Email is required'],
             unique: true,
+            sparse: true, // Allow null values for wallet-only accounts
             lowercase: true,
             trim: true,
             match: [/^\S+@\S+\.\S+$/, 'Please provide a valid email'],
+            required: function () {
+                return this.authMethod === 'email' || this.authMethod === 'both';
+            },
         },
         password: {
             type: String,
-            required: [true, 'Password is required'],
             minlength: [6, 'Password must be at least 6 characters'],
+            required: function () {
+                return this.authMethod === 'email' || this.authMethod === 'both';
+            },
+        },
+        // Authentication method
+        authMethod: {
+            type: String,
+            enum: ['email', 'wallet', 'both'],
+            default: 'email',
+            required: true,
+        },
+        // Primary Solana wallet for quick lookup
+        primaryWallet: {
+            type: String,
+            sparse: true, // Allows null, but enforces uniqueness when set
+            index: true,
         },
         // Profile information
         avatar: {
@@ -135,6 +154,7 @@ const userSchema = new mongoose.Schema(
 // Indexes for performance
 userSchema.index({ username: 1 });
 userSchema.index({ email: 1 });
+userSchema.index({ primaryWallet: 1 });
 userSchema.index({ createdAt: -1 });
 
 // Virtual for follower count

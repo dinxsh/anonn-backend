@@ -40,10 +40,24 @@ export const createContentLimiter = rateLimit({
 
 // Vote rate limiter
 export const voteLimiter = rateLimit({
-    windowMs: 60 * 1000, // 1 minute
+    windowMs: 1 * 60 * 1000, // 1 minute
     max: 30, // 30 votes per minute
     message: {
         success: false,
         message: 'Too many votes, please slow down.',
     },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+// Wallet authentication rate limiter
+export const walletAuthLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 5, // 5 wallet auth attempts per window
+    message: {
+        success: false,
+        message: 'Too many wallet authentication attempts, please try again later.',
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
 });

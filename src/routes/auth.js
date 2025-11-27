@@ -1,9 +1,18 @@
 import express from 'express';
 import { body } from 'express-validator';
-import { register, login, logout, refresh, getCurrentUser } from '../controllers/authController.js';
+import {
+    register,
+    login,
+    logout,
+    refresh,
+    getCurrentUser,
+    requestWalletNonce,
+    walletAuth,
+    linkWallet,
+} from '../controllers/authController.js';
 import { authenticate } from '../middleware/auth.js';
 import { validate } from '../middleware/validation.js';
-import { authLimiter } from '../middleware/rateLimiter.js';
+import { authLimiter, walletAuthLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
@@ -43,6 +52,26 @@ const refreshValidation = [
     body('refreshToken')
         .notEmpty()
         .withMessage('Refresh token is required'),
+];
+
+const walletNonceValidation = [
+    body('publicKey')
+        .notEmpty()
+        .withMessage('Solana public key is required'),
+];
+
+const walletVerifyValidation = [
+    body('publicKey')
+        .notEmpty()
+        .withMessage('Solana public key is required'),
+    body('signature')
+        .notEmpty()
+        .withMessage('Signature is required'),
+    body('username')
+        .optional()
+        .trim()
+        .isLength({ min: 3, max: 30 })
+        .withMessage('Username must be 3-30 characters'),
 ];
 
 // Routes
@@ -232,5 +261,138 @@ router.post('/refresh', refreshValidation, validate, refresh);
  *         $ref: '#/components/responses/UnauthorizedError'
  */
 router.get('/me', authenticate, getCurrentUser);
+
+// Wallet Authentication Routes
+
+/**
+ * @swagger
+ * /api/auth/wallet/nonce:
+ *   post:
+ *     summary: Request nonce for Solana wallet authentication
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - publicKey
+ *             properties:
+ *               publicKey:
+ *                 type: string
+ *                 example: 7xKzL3v...XqB
+ *     responses:
+ *       200:
+ *         description: Nonce generated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     nonce:
+ *                       type: string
+ *                     message:
+ *                       type: string
+ *                     expiresIn:
+ *                       type: integer
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ */
+router.post('/wallet/nonce', walletAuthLimiter, walletNonceValidation, validate, requestWalletNonce);
+
+/**
+ * @swagger
+ * /api/auth/wallet/verify:
+ *   post:
+ *     summary: Verify wallet signature and login/register
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - publicKey
+ *               - signature
+ *             properties:
+ *               publicKey:
+ *                 type: string
+ *                 example: 7xKzL3v...XqB
+ *               signature:
+ *                 type: string
+ *                 example: 3Bv7wX...zY2
+ *               username:
+ *                 type: string
+ *                 example: my_username
+ *     responses:
+ *       200:
+ *         description: Login successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     user:
+ *                       $ref: '#/components/schemas/User'
+ *                     accessToken:
+ *                       type: string
+ *                     refreshToken:
+ *                       type: string
+ *                     isNewUser:
+ *                       type: boolean
+ *       201:
+ *         description: Account created successfully
+ *       401:
+ *         description: Invalid signature
+ */
+router.post('/wallet/verify', walletAuthLimiter, walletVerifyValidation, validate, walletAuth);
+
+/**
+ * @swagger
+ * /api/auth/wallet/link:
+ *   post:
+ *     summary: Link Solana wallet to existing account
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - publicKey
+ *               - signature
+ *             properties:
+ *               publicKey:
+ *                 type: string
+ *                 example: 7xKzL3v...XqB
+ *               signature:
+ *                 type: string
+ *                 example: 3Bv7wX...zY2
+ *     responses:
+ *       200:
+ *         description: Wallet linked successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ */
+router.post('/wallet/link', authenticate, walletAuthLimiter, walletVerifyValidation, validate, linkWallet);
 
 export default router;

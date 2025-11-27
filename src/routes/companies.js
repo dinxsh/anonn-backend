@@ -26,7 +26,7 @@ const createCompanyValidation = [
  * /api/companies:
  *   post:
  *     summary: Create a new company
- *     tags: [Companies
+ *     tags: [Companies]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
