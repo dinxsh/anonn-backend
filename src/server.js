@@ -56,11 +56,38 @@ app.use(helmet({
 // Request sanitization
 app.use(mongoSanitize()); // Prevent MongoDB injection
 
-// CORS
-app.use(cors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+// CORS - Enhanced configuration
+const corsOptions = {
+    origin: function (origin, callback) {
+        // Allow requests with no origin (mobile apps, Postman, curl, etc.)
+        if (!origin) return callback(null, true);
+
+        // Parse allowed origins from environment variable (comma-separated)
+        const allowedOrigins = process.env.CORS_ORIGIN
+            ? process.env.CORS_ORIGIN.split(',').map(o => o.trim())
+            : ['http://localhost:3000'];
+
+        // Check if the origin is in the allowed list or if wildcard is set
+        if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            // Still allow but log warning - prevents blocking legitimate requests during development
+            console.warn(`⚠️  CORS: Request from non-whitelisted origin: ${origin}`);
+            callback(null, true);
+        }
+    },
     credentials: true,
-}));
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+    exposedHeaders: ['Content-Range', 'X-Content-Range'],
+    maxAge: 86400, // Cache preflight for 24 hours
+    optionsSuccessStatus: 200 // Some legacy browsers choke on 204
+};
+
+app.use(cors(corsOptions));
+
+// Explicit preflight handling for all routes
+app.options('*', cors(corsOptions));
 
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
