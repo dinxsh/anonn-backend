@@ -62,7 +62,7 @@ const voteValidation = [
  *             properties:
  *               question:
  *                 type: string
- *                 example: Will ETH reach $5000 in 2024?
+ *                 example: Will ETH reach $8000 in 2024?
  *               options:
  *                 type: array
  *                 items:

@@ -9,7 +9,7 @@ const swaggerOptions = {
     definition: {
         openapi: '3.0.0',
         info: {
-            title: 'Web3 Social + Prediction Platform API',
+            title: 'Anonn Backend API',
             version: '1.0.0',
             description: 'Comprehensive REST API for a Web3-enabled social and prediction platform combining features from Reddit and Polymarket',
             contact: {
@@ -23,12 +23,10 @@ const swaggerOptions = {
         },
         servers: [
             {
-                url: 'http://localhost:8000',
-                description: 'Development server',
-            },
-            {
-                url: 'https://api.example.com',
-                description: 'Production server',
+                url: process.env.NODE_ENV === 'production'
+                    ? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://api.example.com')
+                    : 'http://localhost:8000',
+                description: process.env.NODE_ENV === 'production' ? 'Production server' : 'Development server',
             },
         ],
         components: {
@@ -131,7 +129,7 @@ const swaggerOptions = {
                     type: 'object',
                     properties: {
                         _id: { type: 'string' },
-                        question: { type: 'string', example: 'Will ETH reach $5000 by end of 2024?' },
+                        question: { type: 'string', example: 'Will ETH reach $8000 by end of 2024?' },
                         options: {
                             type: 'array',
                             items: {

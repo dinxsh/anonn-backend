@@ -4,7 +4,8 @@ import dotenv from 'dotenv';
 import helmet from 'helmet';
 import mongoSanitize from 'express-mongo-sanitize';
 import morgan from 'morgan';
-import swaggerUi from 'swagger-ui-express';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import connectDB from './config/database.js';
 import errorHandler from './middleware/errorHandler.js';
 import swaggerSpec from './config/swagger.js';
@@ -100,18 +101,26 @@ if (process.env.NODE_ENV === 'development') {
     app.use(morgan('combined'));
 }
 
-// API Documentation - Swagger UI
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-    explorer: true,
-    customCss: '.swagger-ui .topbar { display: none }',
-    customSiteTitle: 'Web3 Social API Docs',
-}));
+// API Documentation - Swagger UI (Serverless-friendly)
+// Serve Swagger JSON spec
+app.get('/api-docs/swagger.json', (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.send(swaggerSpec);
+});
+
+// Serve Swagger UI HTML page
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+app.get('/api-docs', (req, res) => {
+    res.sendFile(join(__dirname, 'public', 'swagger.html'));
+});
 
 // Health check route
 app.get('/health', (req, res) => {
     res.json({
         success: true,
-        message: 'Web3 Social + Prediction Platform API is running',
+        message: 'Anonn Backend API is running',
         timestamp: new Date().toISOString(),
         version: '1.0.0',
         environment: process.env.NODE_ENV || 'development',
@@ -122,7 +131,7 @@ app.get('/health', (req, res) => {
 app.get('/', (req, res) => {
     res.json({
         success: true,
-        message: 'Welcome to Web3 Social + Prediction Platform API',
+        message: 'Welcome to Anonn Backend API',
         version: '1.0.0',
         documentation: '/api-docs',
         health: '/health',

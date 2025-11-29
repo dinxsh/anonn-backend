@@ -215,14 +215,14 @@ const seedDatabase = async () => {
         console.log('📊 Creating polls...');
         const polls = await Poll.create([
             {
-                question: 'Will Ethereum reach $5000 by end of 2024?',
+                question: 'Will Ethereum reach $8000 by end of 2024?',
                 description: 'Prediction market for ETH price target',
                 author: users[0]._id,
                 community: communities[0]._id,
                 company: companies[0]._id,
                 options: [
-                    { text: 'Yes, it will reach $5000', voteCount: 45, votes: [] },
-                    { text: 'No, it will stay below $5000', voteCount: 30, votes: [] },
+                    { text: 'Yes, it will reach $8000', voteCount: 45, votes: [] },
+                    { text: 'No, it will stay below $8000', voteCount: 30, votes: [] },
                     { text: 'It will exceed $6000', voteCount: 15, votes: [] },
                 ],
                 bias: 'positive',
@@ -290,7 +290,7 @@ const seedDatabase = async () => {
                 ],
                 yesPrice: 0.6,
                 noPrice: 0.4,
-                totalLiquidity: 15000,
+                totalLiquidity: 18000,
                 totalVolume: 3000,
                 expiresAt: new Date(Date.now() + 200 * 24 * 60 * 60 * 1000),
             },

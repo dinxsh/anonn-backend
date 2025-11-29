@@ -10,7 +10,7 @@ const envSchema = Joi.object({
         .valid('development', 'production', 'test')
         .default('development'),
     PORT: Joi.number()
-        .default(5000),
+        .default(8000),
     MONGODB_URI: Joi.string()
         .required()
         .description('MongoDB connection string is required'),
