@@ -110,7 +110,7 @@
    ```json
    {
      "success": true,
-     "message": "Web3 Social + Prediction Platform API is running",
+     "message": "Anonn Backend API is running",
      "timestamp": "2024-01-01T00:00:00.000Z",
      "version": "1.0.0",
      "environment": "production"

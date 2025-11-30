@@ -49,14 +49,16 @@ export const errorResponse = (res, statusCode = 500, message = 'Internal Server 
 export const paginatedResponse = (res, data, page, limit, total) => {
     return res.status(200).json({
         success: true,
-        data,
-        pagination: {
-            currentPage: page,
-            itemsPerPage: limit,
-            totalItems: total,
-            totalPages: Math.ceil(total / limit),
-            hasNextPage: page * limit < total,
-            hasPrevPage: page > 1,
+        data: {
+            posts: data,
+            pagination: {
+                currentPage: page,
+                itemsPerPage: limit,
+                totalItems: total,
+                totalPages: Math.ceil(total / limit),
+                hasNextPage: page * limit < total,
+                hasPrevPage: page > 1,
+            },
         },
     });
 };

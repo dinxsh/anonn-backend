@@ -76,7 +76,7 @@
        server_name api.yourdomain.com;
        
        location / {
-           proxy_pass http://localhost:5000;
+           proxy_pass http://localhost:8000;
            proxy_http_version 1.1;
            proxy_set_header Upgrade $http_upgrade;
            proxy_set_header Connection 'upgrade';
@@ -95,14 +95,14 @@
    COPY package*.json ./
    RUN npm install --production
    COPY . .
-   EXPOSE 5000
+   EXPOSE 8000
    CMD ["node", "src/server.js"]
    ```
 
 2. **Build and Run**
    ```bash
    docker build -t web3-social-api .
-   docker run -d -p 5000:5000 --env-file .env web3-social-api
+   docker run -d -p 8000:8000 --env-file .env web3-social-api
    ```
 
 ### Option 3: Cloud Platforms (Heroku, Render, Railway)

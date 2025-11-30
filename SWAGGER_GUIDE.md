@@ -147,7 +147,7 @@ Now all protected endpoints will include your token automatically!
 ### Create a Poll
 ```json
 {
-  "question": "Will ETH reach $5000 by end of 2024?",
+  "question": "Will ETH reach $8000 by end of 2024?",
   "options": [
     { "text": "Yes" },
     { "text": "No" },

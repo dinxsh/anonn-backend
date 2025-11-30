@@ -1,48 +1,56 @@
-import { errorResponse } from '../utils/response.js';
+import { ErrorCodes, ErrorMessages } from '../utils/errorCodes.js';
 
 /**
  * Global Error Handler Middleware
  * Catches all errors and returns consistent error response
  */
-
 const errorHandler = (err, req, res, next) => {
-    console.error('Error:', err);
+    let error = { ...err };
+    error.message = err.message;
+
+    // Log to console for dev
+    console.error(err);
+
+    // Mongoose bad ObjectId
+    if (err.name === 'CastError') {
+        const message = `Resource not found`;
+        error = {
+            success: false,
+            statusCode: 404,
+            message,
+            errorCode: ErrorCodes.RESOURCE_NOT_FOUND
+        };
+    }
+
+    // Mongoose duplicate key
+    if (err.code === 11000) {
+        const message = 'Duplicate field value entered';
+        error = {
+            success: false,
+            statusCode: 400,
+            message,
+            errorCode: ErrorCodes.RESOURCE_ALREADY_EXISTS
+        };
+    }
 
     // Mongoose validation error
     if (err.name === 'ValidationError') {
-        const errors = Object.values(err.errors).map(e => ({
-            field: e.path,
-            message: e.message,
-        }));
-        return errorResponse(res, 400, 'Validation error', errors);
+        const message = Object.values(err.errors).map(val => val.message);
+        error = {
+            success: false,
+            statusCode: 400,
+            message,
+            errorCode: ErrorCodes.VALIDATION_ERROR
+        };
     }
 
-    // Mongoose duplicate key error
-    if (err.code === 11000) {
-        const field = Object.keys(err.keyPattern)[0];
-        return errorResponse(res, 400, `${field} already exists`);
-    }
-
-    // Mongoose cast error (invalid ObjectId)
-    if (err.name === 'CastError') {
-        return errorResponse(res, 400, 'Invalid ID format');
-    }
-
-    // JWT errors
-    if (err.name === 'JsonWebTokenError') {
-        return errorResponse(res, 401, 'Invalid token');
-    }
-
-    if (err.name === 'TokenExpiredError') {
-        return errorResponse(res, 401, 'Token expired');
-    }
-
-    // Default error
-    return errorResponse(
-        res,
-        err.statusCode || 500,
-        err.message || 'Internal Server Error'
-    );
+    res.status(error.statusCode || 500).json({
+        success: false,
+        message: error.message || 'Server Error',
+        errorCode: error.errorCode || ErrorCodes.INTERNAL_SERVER_ERROR,
+        requestId: req.id, // Include Request ID
+        ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
+    });
 };
 
 export default errorHandler;

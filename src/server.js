@@ -8,9 +8,17 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import connectDB from './config/database.js';
 import errorHandler from './middleware/errorHandler.js';
-import swaggerSpec from './config/swagger.js';
+import { swaggerSpec, swaggerUi, swaggerUiOptions } from './config/swagger.js';
 import { validateEnv } from './config/envValidation.js';
 import { apiLimiter } from './middleware/rateLimiter.js';
+import {
+    requestId,
+    checkRequestSize,
+    sanitizeData,
+    xssProtection,
+    preventParamPollution,
+    securityHeaders
+} from './middleware/security.js';
 
 // Import routes
 import authRoutes from './routes/auth.js';
@@ -43,6 +51,7 @@ const app = express();
 connectDB();
 
 // Security Middleware
+app.use(requestId);
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
@@ -52,10 +61,15 @@ app.use(helmet({
             imgSrc: ["'self'", "data:", "https:"], // For Swagger UI and external images
         },
     },
-})); // Security headers
+}));
+app.use(securityHeaders);
+app.use(checkRequestSize);
+app.use(sanitizeData);
+app.use(xssProtection);
+app.use(preventParamPollution);
 
-// Request sanitization
-app.use(mongoSanitize()); // Prevent MongoDB injection
+// Request sanitization (redundant with sanitizeData but keeping for safety if sanitizeData changes)
+// app.use(mongoSanitize()); 
 
 // CORS - Enhanced configuration
 const corsOptions = {
@@ -94,38 +108,6 @@ app.options('*', cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Logging
-if (process.env.NODE_ENV === 'development') {
-    app.use(morgan('dev'));
-} else {
-    app.use(morgan('combined'));
-}
-
-// API Documentation - Swagger UI (Serverless-friendly)
-// Serve Swagger JSON spec
-app.get('/api-docs/swagger.json', (req, res) => {
-    res.setHeader('Content-Type', 'application/json');
-    res.send(swaggerSpec);
-});
-
-// Serve Swagger UI HTML page
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-app.get('/api-docs', (req, res) => {
-    res.sendFile(join(__dirname, 'public', 'swagger.html'));
-});
-
-// Health check route
-app.get('/health', (req, res) => {
-    res.json({
-        success: true,
-        message: 'Anonn Backend API is running',
-        timestamp: new Date().toISOString(),
-        version: '1.0.0',
-        environment: process.env.NODE_ENV || 'development',
-    });
-});
 
 // API version info
 app.get('/', (req, res) => {
