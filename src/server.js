@@ -57,7 +57,9 @@ app.use(helmet({
         directives: {
             defaultSrc: ["'self'"],
             styleSrc: ["'self'", "'unsafe-inline'", 'https://unpkg.com'],
+            styleSrcElem: ["'self'", 'https://unpkg.com', "'unsafe-inline'"],
             scriptSrc: ["'self'", "'unsafe-inline'", 'https://unpkg.com'],
+            scriptSrcElem: ["'self'", 'https://unpkg.com', "'unsafe-inline'"],
             imgSrc: ["'self'", "data:", "https:"],
         },
     },
