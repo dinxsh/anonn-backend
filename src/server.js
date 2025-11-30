@@ -109,8 +109,28 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 
-// Swagger UI
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, swaggerUiOptions));
+
+import { readFileSync } from 'fs';
+import path from 'path';
+
+if (process.env.VERCEL === '1') {
+    // On Vercel, serve static swagger.html at /api-docs
+    app.get('/api-docs', (req, res) => {
+        const swaggerHtmlPath = path.join(process.cwd(), 'src', 'public', 'swagger.html');
+        let html = readFileSync(swaggerHtmlPath, 'utf8');
+        // Optionally inject the OpenAPI spec URL dynamically
+        html = html.replace('"/openapi.json"', '"/api-docs/openapi.json"');
+        res.setHeader('Content-Type', 'text/html');
+        res.send(html);
+    });
+    // Serve the OpenAPI spec as JSON for Swagger UI
+    app.get('/api-docs/openapi.json', (req, res) => {
+        res.json(swaggerSpec);
+    });
+} else {
+    // Local/dev: use swagger-ui-express middleware
+    app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, swaggerUiOptions));
+}
 
 // API version info
 app.get('/', (req, res) => {
