@@ -65,6 +65,92 @@ const options = {
                         },
                     },
                 },
+                User: {
+                    type: 'object',
+                    properties: {
+                        _id: { type: 'string', example: '60d0fe4f5311236168a109ca' },
+                        username: { type: 'string', example: 'john_doe' },
+                        email: { type: 'string', example: 'john@example.com' },
+                        authMethod: { type: 'string', example: 'email' },
+                        primaryWallet: { type: 'string', example: 'wallet_address' },
+                        avatar: { type: 'string', example: 'https://example.com/avatar.png' },
+                        bio: { type: 'string', example: 'Web3 enthusiast' },
+                        walletAddresses: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    address: { type: 'string', example: 'wallet_address' },
+                                    chain: { type: 'string', example: 'solana' },
+                                    isPrimary: { type: 'boolean', example: true },
+                                    verified: { type: 'boolean', example: false },
+                                },
+                            },
+                        },
+                        followers: {
+                            type: 'array',
+                            items: { type: 'string', example: '60d0fe4f5311236168a109cb' },
+                        },
+                        following: {
+                            type: 'array',
+                            items: { type: 'string', example: '60d0fe4f5311236168a109cc' },
+                        },
+                        bookmarkedPosts: {
+                            type: 'array',
+                            items: { type: 'string', example: '60d0fe4f5311236168a109cd' },
+                        },
+                        bookmarkedPolls: {
+                            type: 'array',
+                            items: { type: 'string', example: '60d0fe4f5311236168a109ce' },
+                        },
+                        bookmarkedComments: {
+                            type: 'array',
+                            items: { type: 'string', example: '60d0fe4f5311236168a109cf' },
+                        },
+                        bookmarkedUsers: {
+                            type: 'array',
+                            items: { type: 'string', example: '60d0fe4f5311236168a109d0' },
+                        },
+                        joinedCommunities: {
+                            type: 'array',
+                            items: { type: 'string', example: '60d0fe4f5311236168a109d1' },
+                        },
+                        joinedBowls: {
+                            type: 'array',
+                            items: { type: 'string', example: '60d0fe4f5311236168a109d2' },
+                        },
+                        notificationSettings: {
+                            type: 'object',
+                            properties: {
+                                email: { type: 'boolean', example: true },
+                                push: { type: 'boolean', example: true },
+                                comments: { type: 'boolean', example: true },
+                                follows: { type: 'boolean', example: true },
+                                mentions: { type: 'boolean', example: true },
+                            },
+                        },
+                        deviceTokens: {
+                            type: 'array',
+                            items: { type: 'string', example: 'device_token' },
+                        },
+                        isActive: { type: 'boolean', example: true },
+                        isVerified: { type: 'boolean', example: false },
+                        createdAt: { type: 'string', format: 'date-time', example: '2023-01-01T00:00:00.000Z' },
+                        updatedAt: { type: 'string', format: 'date-time', example: '2023-01-01T00:00:00.000Z' },
+                    },
+                },
+                ValidationError: {
+                    type: 'object',
+                    properties: {
+                        success: { type: 'boolean', example: false },
+                        message: { type: 'string', example: 'Validation failed' },
+                        errors: {
+                            type: 'object',
+                            additionalProperties: { type: 'string' },
+                            example: { email: 'Email is invalid', username: 'Username already exists' },
+                        },
+                    },
+                },
             },
         },
         tags: [
