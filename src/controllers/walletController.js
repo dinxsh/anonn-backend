@@ -10,25 +10,39 @@ import { successResponse, errorResponse } from '../utils/response.js';
 
 export const linkWallet = async (req, res, next) => {
     try {
-        const { address, chain, signature } = req.body;
+        const { address, chain, signature, publicKey, message } = req.body;
+        let isValid = false;
+        let normalizedAddress = address;
 
-        // Verify signature
-        const message = `Link wallet ${address} to account`;
-        const recoveredAddress = ethers.verifyMessage(message, signature);
+        if (chain === 'solana') {
+            // Solana wallet verification
+            const { verifySignature } = await import('../utils/solana.js');
+            if (!publicKey || !signature || !message) {
+                return errorResponse(res, 400, 'Missing publicKey, signature, or message for Solana wallet');
+            }
+            isValid = verifySignature(message, signature, publicKey);
+            normalizedAddress = publicKey;
+        } else {
+            // EVM wallet verification (MetaMask, etc.)
+            const msg = message || `Link wallet ${address} to account`;
+            const recoveredAddress = ethers.verifyMessage(msg, signature);
+            isValid = (recoveredAddress.toLowerCase() === address.toLowerCase());
+            normalizedAddress = address.toLowerCase();
+        }
 
-        if (recoveredAddress.toLowerCase() !== address.toLowerCase()) {
+        if (!isValid) {
             return errorResponse(res, 400, 'Invalid signature');
         }
 
         // Check if wallet already linked
-        const existingWallet = await Wallet.findOne({ address: address.toLowerCase() });
+        const existingWallet = await Wallet.findOne({ address: normalizedAddress });
         if (existingWallet) {
             return errorResponse(res, 400, 'Wallet already linked to an account');
         }
 
         const wallet = await Wallet.create({
             user: req.user._id,
-            address: address.toLowerCase(),
+            address: normalizedAddress,
             chain,
             isVerified: true,
             verificationSignature: signature,
@@ -39,7 +53,7 @@ export const linkWallet = async (req, res, next) => {
         await User.findByIdAndUpdate(req.user._id, {
             $push: {
                 walletAddresses: {
-                    address: address.toLowerCase(),
+                    address: normalizedAddress,
                     chain,
                     isPrimary: wallet.isPrimary,
                     verified: true,
