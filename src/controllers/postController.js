@@ -16,14 +16,36 @@ import { successResponse, errorResponse, paginatedResponse } from '../utils/resp
 export const createPost = async (req, res, next) => {
     try {
         const { title, content, community, bowl, companyTags, type, mediaUrl, linkUrl } = req.body;
+        const mongoose = (await import('mongoose')).default;
+
+        let communityId = community;
+        if (communityId && typeof communityId === 'string') {
+            if (mongoose.Types.ObjectId.isValid(communityId)) {
+                communityId = new mongoose.Types.ObjectId(communityId);
+            } else {
+                return errorResponse(res, 400, null, 'Invalid community ID');
+            }
+        }
+
+        let companyTagIds = Array.isArray(companyTags) ? companyTags : [];
+        companyTagIds = companyTagIds.map(tag => {
+            if (typeof tag === 'string' && mongoose.Types.ObjectId.isValid(tag)) {
+                return new mongoose.Types.ObjectId(tag);
+            } else {
+                return null;
+            }
+        });
+        if (companyTagIds.includes(null)) {
+            return errorResponse(res, 400, null, 'One or more companyTags are invalid IDs');
+        }
 
         const post = await Post.create({
             title,
             content,
             author: req.user._id,
-            community,
+            community: communityId,
             bowl,
-            companyTags: companyTags || [],
+            companyTags: companyTagIds,
             type: type || 'text',
             mediaUrl,
             linkUrl,

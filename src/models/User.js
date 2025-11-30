@@ -159,12 +159,12 @@ userSchema.index({ createdAt: -1 });
 
 // Virtual for follower count
 userSchema.virtual('followerCount').get(function () {
-    return this.followers.length;
+    return Array.isArray(this.followers) ? this.followers.length : 0;
 });
 
 // Virtual for following count
 userSchema.virtual('followingCount').get(function () {
-    return this.following.length;
+    return Array.isArray(this.following) ? this.following.length : 0;
 });
 
 // Virtual for post count (will be populated by queries)

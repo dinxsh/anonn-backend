@@ -36,6 +36,43 @@ const options = {
                     description: 'Enter your JWT token',
                 },
             },
+            responses: {
+                UnauthorizedError: {
+                    description: 'Authentication required or invalid token',
+                    content: {
+                        'application/json': {
+                            schema: {
+                                type: 'object',
+                                properties: {
+                                    success: { type: 'boolean', example: false },
+                                    message: { type: 'string', example: 'Unauthorized' },
+                                    errorCode: { type: 'string', example: 'UNAUTHORIZED' },
+                                },
+                            },
+                        },
+                    },
+                },
+                ValidationError: {
+                    description: 'Validation failed',
+                    content: {
+                        'application/json': {
+                            schema: {
+                                type: 'object',
+                                properties: {
+                                    success: { type: 'boolean', example: false },
+                                    message: { type: 'string', example: 'Validation failed' },
+                                    errorCode: { type: 'string', example: 'VALIDATION_ERROR' },
+                                    errors: {
+                                        type: 'object',
+                                        additionalProperties: { type: 'string' },
+                                        example: { name: 'Name is required' },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
             schemas: {
                 Error: {
                     type: 'object',

@@ -24,6 +24,9 @@ export const createBowl = async (req, res, next) => {
 
         return successResponse(res, 201, { bowl }, 'Bowl created');
     } catch (error) {
+        if (error.code === 11000 && error.keyPattern && error.keyPattern.name) {
+            return errorResponse(res, 400, null, 'A bowl with this name already exists', 'RESOURCE_ALREADY_EXISTS');
+        }
         next(error);
     }
 };
