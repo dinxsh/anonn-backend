@@ -56,9 +56,9 @@ app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             defaultSrc: ["'self'"],
-            styleSrc: ["'self'", "'unsafe-inline'"], // For Swagger UI
-            scriptSrc: ["'self'", "'unsafe-inline'"], // For Swagger UI
-            imgSrc: ["'self'", "data:", "https:"], // For Swagger UI and external images
+            styleSrc: ["'self'", "'unsafe-inline'", 'https://unpkg.com'],
+            scriptSrc: ["'self'", "'unsafe-inline'", 'https://unpkg.com'],
+            imgSrc: ["'self'", "data:", "https:"],
         },
     },
 }));
