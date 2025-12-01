@@ -68,7 +68,7 @@ const walletVerifyValidation = [
         .notEmpty()
         .withMessage('Signature is required'),
     body('username')
-        .optional()
+        .optional({ values: 'falsy' })
         .trim()
         .isLength({ min: 3, max: 30 })
         .withMessage('Username must be 3-30 characters'),
