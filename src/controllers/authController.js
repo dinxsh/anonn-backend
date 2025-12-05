@@ -197,10 +197,12 @@ export const requestWalletNonce = async (req, res, next) => {
 
         // Generate and store nonce
         const nonce = generateNonce();
-        storeNonce(publicKey, nonce);
 
         // Format message to sign
         const message = formatWalletMessage(nonce, 'authentication');
+        
+        // Store nonce with the message
+        storeNonce(publicKey, nonce, message);
 
         return successResponse(res, 200, {
             nonce,
@@ -227,16 +229,15 @@ export const walletAuth = async (req, res, next) => {
             return errorResponse(res, 400, 'Invalid Solana public key');
         }
 
-        // Retrieve stored nonce
-        const storedNonce = getNonce(publicKey);
-        if (!storedNonce) {
+        // Retrieve stored nonce and message
+        const stored = getNonce(publicKey);
+        if (!stored) {
             return errorResponse(res, 400, 'Nonce not found or expired. Please request a new nonce.');
         }
 
-        // Recreate the message
-        const message = formatWalletMessage(storedNonce, 'authentication');
+        const { nonce: storedNonce, message } = stored;
 
-        // Verify signature
+        // Verify signature using the stored message
         const isValid = verifySignature(message, signature, publicKey);
         if (!isValid) {
             return errorResponse(res, 401, 'Invalid signature');
@@ -318,16 +319,15 @@ export const linkWallet = async (req, res, next) => {
             return errorResponse(res, 400, 'This wallet is already linked to another account');
         }
 
-        // Retrieve stored nonce
-        const storedNonce = getNonce(publicKey);
-        if (!storedNonce) {
+        // Retrieve stored nonce and message
+        const stored = getNonce(publicKey);
+        if (!stored) {
             return errorResponse(res, 400, 'Nonce not found or expired. Please request a new nonce.');
         }
 
-        // Recreate the message
-        const message = formatWalletMessage(storedNonce, 'link-wallet');
+        const { nonce: storedNonce, message } = stored;
 
-        // Verify signature
+        // Verify signature using the stored message
         const isValid = verifySignature(message, signature, publicKey);
         if (!isValid) {
             return errorResponse(res, 401, 'Invalid signature');

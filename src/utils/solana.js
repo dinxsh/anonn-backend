@@ -24,10 +24,11 @@ export const generateNonce = () => {
  * Store nonce with expiration
  * @param {string} publicKey - Solana public key
  * @param {string} nonce - Generated nonce
+ * @param {string} message - Formatted message to sign
  */
-export const storeNonce = (publicKey, nonce) => {
+export const storeNonce = (publicKey, nonce, message) => {
     const expiresAt = Date.now() + NONCE_TTL;
-    nonceStore.set(publicKey, { nonce, expiresAt });
+    nonceStore.set(publicKey, { nonce, message, expiresAt });
 
     // Cleanup expired nonces periodically
     cleanupExpiredNonces();
@@ -36,7 +37,7 @@ export const storeNonce = (publicKey, nonce) => {
 /**
  * Retrieve and validate nonce
  * @param {string} publicKey - Solana public key
- * @returns {string|null} Nonce if valid, null if expired or not found
+ * @returns {object|null} Object with nonce and message if valid, null if expired or not found
  */
 export const getNonce = (publicKey) => {
     const stored = nonceStore.get(publicKey);
@@ -50,7 +51,7 @@ export const getNonce = (publicKey) => {
         return null;
     }
 
-    return stored.nonce;
+    return { nonce: stored.nonce, message: stored.message };
 };
 
 /**
