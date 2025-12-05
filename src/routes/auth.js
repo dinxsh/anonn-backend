@@ -55,15 +55,37 @@ const refreshValidation = [
 ];
 
 const walletNonceValidation = [
+    body('chain')
+        .optional()
+        .isIn(['solana', 'ethereum', 'polygon', 'binance'])
+        .withMessage('Chain must be one of: solana, ethereum, polygon, binance'),
     body('publicKey')
-        .notEmpty()
-        .withMessage('Solana public key is required'),
+        .optional()
+        .withMessage('Public key is required for Solana'),
+    body('address')
+        .optional()
+        .withMessage('Address is required for Ethereum/EVM chains'),
+    // At least one wallet identifier must be provided
+    body()
+        .custom((value, { req }) => {
+            if (!req.body.publicKey && !req.body.address) {
+                throw new Error('Either publicKey or address is required');
+            }
+            return true;
+        }),
 ];
 
 const walletVerifyValidation = [
+    body('chain')
+        .optional()
+        .isIn(['solana', 'ethereum', 'polygon', 'binance'])
+        .withMessage('Chain must be one of: solana, ethereum, polygon, binance'),
     body('publicKey')
-        .notEmpty()
-        .withMessage('Solana public key is required'),
+        .optional()
+        .withMessage('Public key is required for Solana'),
+    body('address')
+        .optional()
+        .withMessage('Address is required for Ethereum/EVM chains'),
     body('signature')
         .notEmpty()
         .withMessage('Signature is required'),
@@ -72,6 +94,14 @@ const walletVerifyValidation = [
         .trim()
         .isLength({ min: 3, max: 30 })
         .withMessage('Username must be 3-30 characters'),
+    // At least one wallet identifier must be provided
+    body()
+        .custom((value, { req }) => {
+            if (!req.body.publicKey && !req.body.address) {
+                throw new Error('Either publicKey or address is required');
+            }
+            return true;
+        }),
 ];
 
 // Routes

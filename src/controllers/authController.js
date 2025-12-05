@@ -2,21 +2,13 @@ import User from '../models/User.js';
 import { hashPassword, comparePassword } from '../utils/password.js';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../utils/jwt.js';
 import { successResponse, errorResponse } from '../utils/response.js';
-import {
-    generateNonce,
-    storeNonce,
-    getNonce,
-    removeNonce,
-    formatWalletMessage,
-    verifySignature,
-    isValidSolanaAddress,
-    generateUsernameFromWallet,
-} from '../utils/solana.js';
+import * as solanaUtils from '../utils/solana.js';
+import * as ethereumUtils from '../utils/ethereum.js';
 
 /**
  * Auth Controller
  * Handles user authentication: register, login, logout, refresh, current user
- * + Solana wallet authentication
+ * + Multi-chain wallet authentication (Solana, Ethereum)
  */
 
 /**
@@ -183,30 +175,43 @@ export const getCurrentUser = async (req, res, next) => {
 
 /**
  * @route   POST /api/auth/wallet/nonce
- * @desc    Request nonce for Solana wallet authentication
+ * @desc    Request nonce for wallet authentication (Solana or Ethereum)
  * @access  Public
  */
 export const requestWalletNonce = async (req, res, next) => {
     try {
-        const { publicKey } = req.body;
+        const { publicKey, address, chain = 'solana' } = req.body;
+        const walletIdentifier = publicKey || address;
 
-        // Validate Solana address
-        if (!isValidSolanaAddress(publicKey)) {
-            return errorResponse(res, 400, 'Invalid Solana public key');
+        if (!walletIdentifier) {
+            return errorResponse(res, 400, 'Wallet address or public key is required');
+        }
+
+        // Select appropriate utils based on chain
+        const utils = chain === 'ethereum' ? ethereumUtils : solanaUtils;
+
+        // Validate address format
+        const isValid = chain === 'ethereum' 
+            ? utils.isValidEthereumAddress(walletIdentifier)
+            : utils.isValidSolanaAddress(walletIdentifier);
+
+        if (!isValid) {
+            return errorResponse(res, 400, `Invalid ${chain} address`);
         }
 
         // Generate and store nonce
-        const nonce = generateNonce();
+        const nonce = utils.generateNonce();
 
         // Format message to sign
-        const message = formatWalletMessage(nonce, 'authentication');
+        const message = utils.formatWalletMessage(nonce, 'authentication');
         
         // Store nonce with the message
-        storeNonce(publicKey, nonce, message);
+        utils.storeNonce(walletIdentifier, nonce, message);
 
         return successResponse(res, 200, {
             nonce,
             message,
+            chain,
             expiresIn: 300, // 5 minutes in seconds
         }, 'Nonce generated successfully');
 
@@ -217,20 +222,32 @@ export const requestWalletNonce = async (req, res, next) => {
 
 /**
  * @route   POST /api/auth/wallet/verify
- * @desc    Verify wallet signature and login/register
+ * @desc    Verify wallet signature and login/register (Solana or Ethereum)
  * @access  Public
  */
 export const walletAuth = async (req, res, next) => {
     try {
-        const { publicKey, signature, username } = req.body;
+        const { publicKey, address, signature, username, chain = 'solana' } = req.body;
+        const walletIdentifier = publicKey || address;
 
-        // Validate Solana address
-        if (!isValidSolanaAddress(publicKey)) {
-            return errorResponse(res, 400, 'Invalid Solana public key');
+        if (!walletIdentifier) {
+            return errorResponse(res, 400, 'Wallet address or public key is required');
+        }
+
+        // Select appropriate utils based on chain
+        const utils = chain === 'ethereum' ? ethereumUtils : solanaUtils;
+
+        // Validate address format
+        const isValid = chain === 'ethereum'
+            ? utils.isValidEthereumAddress(walletIdentifier)
+            : utils.isValidSolanaAddress(walletIdentifier);
+
+        if (!isValid) {
+            return errorResponse(res, 400, `Invalid ${chain} address`);
         }
 
         // Retrieve stored nonce and message
-        const stored = getNonce(publicKey);
+        const stored = utils.getNonce(walletIdentifier);
         if (!stored) {
             return errorResponse(res, 400, 'Nonce not found or expired. Please request a new nonce.');
         }
@@ -238,16 +255,21 @@ export const walletAuth = async (req, res, next) => {
         const { nonce: storedNonce, message } = stored;
 
         // Verify signature using the stored message
-        const isValid = verifySignature(message, signature, publicKey);
-        if (!isValid) {
+        const signatureValid = utils.verifySignature(message, signature, walletIdentifier);
+        if (!signatureValid) {
             return errorResponse(res, 401, 'Invalid signature');
         }
 
         // Remove used nonce (one-time use)
-        removeNonce(publicKey);
+        utils.removeNonce(walletIdentifier);
+
+        // Normalize address for storage
+        const normalizedAddress = chain === 'ethereum' && utils.normalizeAddress
+            ? utils.normalizeAddress(walletIdentifier)
+            : walletIdentifier;
 
         // Check if user already exists with this wallet
-        let user = await User.findOne({ primaryWallet: publicKey });
+        let user = await User.findOne({ primaryWallet: normalizedAddress });
 
         if (user) {
             // Existing user - login
@@ -256,7 +278,7 @@ export const walletAuth = async (req, res, next) => {
             }
         } else {
             // New user - register
-            const generatedUsername = username || generateUsernameFromWallet(publicKey);
+            const generatedUsername = username || utils.generateUsernameFromWallet(normalizedAddress);
 
             // Check if username is taken
             const existingUsername = await User.findOne({ username: generatedUsername });
@@ -268,10 +290,10 @@ export const walletAuth = async (req, res, next) => {
             user = await User.create({
                 username: generatedUsername,
                 authMethod: 'wallet',
-                primaryWallet: publicKey,
+                primaryWallet: normalizedAddress,
                 walletAddresses: [{
-                    address: publicKey,
-                    chain: 'solana',
+                    address: normalizedAddress,
+                    chain: chain,
                     isPrimary: true,
                     verified: true,
                 }],
@@ -300,27 +322,44 @@ export const walletAuth = async (req, res, next) => {
 
 /**
  * @route   POST /api/auth/wallet/link
- * @desc    Link Solana wallet to existing authenticated account
+ * @desc    Link wallet to existing authenticated account (Solana or Ethereum)
  * @access  Private
  */
 export const linkWallet = async (req, res, next) => {
     try {
-        const { publicKey, signature } = req.body;
+        const { publicKey, address, signature, chain = 'solana' } = req.body;
         const userId = req.user._id;
+        const walletIdentifier = publicKey || address;
 
-        // Validate Solana address
-        if (!isValidSolanaAddress(publicKey)) {
-            return errorResponse(res, 400, 'Invalid Solana public key');
+        if (!walletIdentifier) {
+            return errorResponse(res, 400, 'Wallet address or public key is required');
         }
 
+        // Select appropriate utils based on chain
+        const utils = chain === 'ethereum' ? ethereumUtils : solanaUtils;
+
+        // Validate address format
+        const isValid = chain === 'ethereum'
+            ? utils.isValidEthereumAddress(walletIdentifier)
+            : utils.isValidSolanaAddress(walletIdentifier);
+
+        if (!isValid) {
+            return errorResponse(res, 400, `Invalid ${chain} address`);
+        }
+
+        // Normalize address for storage
+        const normalizedAddress = chain === 'ethereum' && utils.normalizeAddress
+            ? utils.normalizeAddress(walletIdentifier)
+            : walletIdentifier;
+
         // Check if wallet is already linked to another account
-        const existingWallet = await User.findOne({ primaryWallet: publicKey });
+        const existingWallet = await User.findOne({ primaryWallet: normalizedAddress });
         if (existingWallet && existingWallet._id.toString() !== userId.toString()) {
             return errorResponse(res, 400, 'This wallet is already linked to another account');
         }
 
         // Retrieve stored nonce and message
-        const stored = getNonce(publicKey);
+        const stored = utils.getNonce(walletIdentifier);
         if (!stored) {
             return errorResponse(res, 400, 'Nonce not found or expired. Please request a new nonce.');
         }
@@ -328,29 +367,31 @@ export const linkWallet = async (req, res, next) => {
         const { nonce: storedNonce, message } = stored;
 
         // Verify signature using the stored message
-        const isValid = verifySignature(message, signature, publicKey);
-        if (!isValid) {
+        const signatureValid = utils.verifySignature(message, signature, walletIdentifier);
+        if (!signatureValid) {
             return errorResponse(res, 401, 'Invalid signature');
         }
 
         // Remove used nonce
-        removeNonce(publicKey);
+        utils.removeNonce(walletIdentifier);
 
         // Update user
         const user = await User.findById(userId);
 
         // Set primary wallet if not already set
         if (!user.primaryWallet) {
-            user.primaryWallet = publicKey;
+            user.primaryWallet = normalizedAddress;
         }
 
         // Add to wallet addresses if not already there
-        const walletExists = user.walletAddresses.some(w => w.address === publicKey);
+        const walletExists = user.walletAddresses.some(w => 
+            w.address.toLowerCase() === normalizedAddress.toLowerCase()
+        );
         if (!walletExists) {
             user.walletAddresses.push({
-                address: publicKey,
-                chain: 'solana',
-                isPrimary: !user.primaryWallet || user.primaryWallet === publicKey,
+                address: normalizedAddress,
+                chain: chain,
+                isPrimary: !user.primaryWallet || user.primaryWallet === normalizedAddress,
                 verified: true,
             });
         }
